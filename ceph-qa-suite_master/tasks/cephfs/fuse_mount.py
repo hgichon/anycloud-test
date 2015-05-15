@@ -36,7 +36,7 @@ class FuseMount(CephFSMount):
         self.client_remote.run(
             args=[
                 'mkdir',
-                '--',
+                '-p',
                 mnt,
             ],
         )

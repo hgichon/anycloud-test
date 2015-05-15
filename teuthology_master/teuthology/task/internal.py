@@ -41,7 +41,26 @@ def base(ctx, config):
                 ],
             wait=False,
             )
-        )
+    )
+
+    run.wait(
+        ctx.cluster.run(
+            args=[
+                'mkdir', '-p', '--', os.path.join(testdir,'archive/coverage'),
+                ],
+            wait=False,
+            )
+    )
+
+    run.wait(
+        ctx.cluster.run(
+            args=[
+                'mkdir', '-p', '--', os.path.join(testdir,'data'),
+                ],
+            wait=False,
+            )
+    )
+
     try:
         yield
     finally:
@@ -51,8 +70,8 @@ def base(ctx, config):
         run.wait(
             ctx.cluster.run(
                 args=[
-                    'rmdir',
-                    '--',
+                    'sudo', 'rm',
+                    '-r',
                     testdir,
                     ],
                 wait=False,

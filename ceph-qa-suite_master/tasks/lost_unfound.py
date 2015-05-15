@@ -46,7 +46,7 @@ def task(ctx, config):
     dummyfile = '/etc/fstab'
 
     # take an osd out until the very end
-#    manager.kill_osd(2)
+    manager.kill_osd(2)
     manager.mark_down_osd(2)
     manager.mark_out_osd(2)
 
@@ -70,7 +70,7 @@ def task(ctx, config):
             '--osd-recovery-delay-start 1000 --osd-min-pg-log-entries 100000000'
             )
 
-#    manager.kill_osd(0)
+    manager.kill_osd(0)
     manager.mark_down_osd(0)
     
     for f in range(1, 10):

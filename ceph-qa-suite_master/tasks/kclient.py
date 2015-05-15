@@ -62,13 +62,28 @@ def task(ctx, config):
     else:
         raise ValueError("Invalid config object: {0} ({1})".format(config, config.__class__))
 
+    clients = ctx.cluster.only(misc.is_type('client'))
+    test_dir = misc.get_testdir(ctx)
+    coverage_dir = '{tdir}/archive/coverage'.format(tdir=test_dir)
+
+    for remote, roles_for_host in clients.remotes.iteritems():
+        for id_ in misc.roles_of_type(roles_for_host, 'client'):
+            client_keyring = '/etc/ceph/ceph.client.{id}.keyring'.format(id=id_)
+            remote.run(
+                args=[
+                    'sudo',
+                    'adjust-ulimits',
+                    'ceph-coverage',
+                    coverage_dir,
+                    'ceph', 'auth', '-o', client_keyring, 'get', 'client.{id}'.format(id=id_),
+                ],
+            )
+
     # config has been converted to a dict by this point
     overrides = ctx.config.get('overrides', {})
     deep_merge(config, overrides.get('kclient', {}))
 
     clients = list(misc.get_clients(ctx=ctx, roles=client_roles))
-
-    test_dir = misc.get_testdir(ctx)
 
     # Assemble mon addresses
     remotes_and_roles = ctx.cluster.remotes.items()

@@ -139,6 +139,8 @@ def task(ctx, config):
                         ],
                     )
 
+        log.info(str(confextras) + ' : ' + str(unc) + ' : ' + str(backend))
+        remote.run(args=['sudo', 'mkdir', '-p', "/usr/local/samba/etc/",],)
         teuthology.sudo_write_file(remote, "/usr/local/samba/etc/smb.conf", """
 [global]
   workgroup = WORKGROUP
@@ -154,11 +156,11 @@ def task(ctx, config):
         # create ubuntu user
         remote.run(
             args=[
-                'sudo', '/usr/local/samba/bin/smbpasswd', '-e', 'ubuntu',
+                'sudo', '/usr/bin/smbpasswd', '-e', 'ubuntu',
                 run.Raw('||'),
                 'printf', run.Raw('"ubuntu\nubuntu\n"'),
                 run.Raw('|'),
-                'sudo', '/usr/local/samba/bin/smbpasswd', '-s', '-a', 'ubuntu'
+                'sudo', '/usr/bin/smbpasswd', '-s', '-a', 'ubuntu'
             ])
 
         smbd_cmd = [
@@ -166,7 +168,7 @@ def task(ctx, config):
                 'daemon-helper',
                 'term',
                 'nostdin',
-                '/usr/local/samba/sbin/smbd',
+                '/usr/sbin/smbd',
                 '-F',
                 ]
         ctx.daemons.add_daemon(remote, 'smbd', id_,
@@ -208,10 +210,10 @@ def task(ctx, config):
                     '/usr/local/samba/var/run/',
                     '/usr/local/samba/var/locks',
                     '/usr/local/samba/var/lock',
-                    ],
+                    '/usr/local/samba/etc/', ],
                 )
             # make sure daemons are gone
-            try:
+'''            try:
                 remote.run(
                     args=[
                         'while',
@@ -243,3 +245,4 @@ def task(ctx, config):
             except Exception:
                 log.exception("Saw exception")
                 pass
+'''

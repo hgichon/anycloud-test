@@ -244,10 +244,6 @@ def cluster(ctx, config):
     :param config: Configuration
     """
 
-    if ctx.config.get('use_existing_cluster', False) is True:
-        log.info("'use_existing_cluster' is true; skipping cluster creation")
-        yield
-
     testdir = teuthology.get_testdir(ctx)
     log.info('Creating ceph cluster...')
     run.wait(
@@ -1141,6 +1137,27 @@ def wait_for_failure(ctx, config):
 
 
 @contextlib.contextmanager
+def make_deamons_list(ctx, config):
+    for type_ in ['mon','mds','osd','client','samba']:
+        daemons = ctx.cluster.only(teuthology.is_type(type_))
+        if daemons is None: continue
+        for remote, roles_for_host in daemons.remotes.iteritems():
+            for id_ in teuthology.roles_of_type(roles_for_host, type_):
+                name = '%s.%s' % (type_, id_)
+
+                ctx.daemons.add_daemon(remote, type_, id_,
+                                      args='no-op',
+                                      logger=log.getChild(name),
+                                      stdin=run.PIPE,
+                                      wait=False,
+                                      )
+    log.info('ctx daemon lists')
+    log.info(ctx.daemons.resolve_role_list(roles=None, types=['mon','mds','osd','client','samba'])) 
+
+    yield
+
+
+@contextlib.contextmanager
 def task(ctx, config):
     """
     Set up and tear down a Ceph cluster.
@@ -1264,11 +1281,9 @@ def task(ctx, config):
         log.info("'use_existing_cluster' is true; skipping cluster creation")
         with contextutil.nested(
             lambda: ceph_log(ctx=ctx, config=None),
-#            lambda: run_daemon(ctx=ctx, config=config, type_='mon'),
+            lambda: make_deamons_list(ctx=ctx, config=None),
             lambda: crush_setup(ctx=ctx, config=config),
-#            lambda: run_daemon(ctx=ctx, config=config, type_='osd'),
             lambda: cephfs_setup(ctx=ctx, config=config),
-#            lambda: run_daemon(ctx=ctx, config=config, type_='mds'),
             ):
             try:
                 if config.get('wait-for-healthy', True):

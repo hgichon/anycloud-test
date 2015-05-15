@@ -109,8 +109,8 @@ class RemoteProcess(object):
                 # connection seems healthy still, assuming it was a
                 # signal; sadly SSH does not tell us which signal
                 raise CommandCrashedError(command=self.command)
-            if status != 0:
-                raise CommandFailedError(command=self.command,
+            if status != 0 and self.label is not None:
+                    raise CommandFailedError(command=self.command,
                                          exitstatus=status, node=self.hostname,
                                          label=self.label)
         return status
