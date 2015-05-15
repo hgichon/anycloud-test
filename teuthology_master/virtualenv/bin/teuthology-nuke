@@ -1,0 +1,10 @@
+#!/home/teuthworker/src/teuthology_master/virtualenv/bin/python
+# EASY-INSTALL-ENTRY-SCRIPT: 'teuthology==0.1.0','console_scripts','teuthology-nuke'
+__requires__ = 'teuthology==0.1.0'
+import sys
+from pkg_resources import load_entry_point
+
+if __name__ == '__main__':
+    sys.exit(
+        load_entry_point('teuthology==0.1.0', 'console_scripts', 'teuthology-nuke')()
+    )
