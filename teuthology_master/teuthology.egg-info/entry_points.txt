@@ -1,0 +1,16 @@
+[console_scripts]
+teuthology-results = scripts.results:main
+teuthology-report = scripts.report:main
+teuthology-lock = scripts.lock:main
+teuthology-kill = scripts.kill:main
+teuthology-update-inventory = scripts.update_inventory:main
+teuthology-ls = scripts.ls:main
+teuthology-queue = scripts.queue:main
+teuthology-worker = scripts.worker:main
+teuthology-nuke = scripts.nuke:main
+teuthology-coverage = scripts.coverage:main
+teuthology-updatekeys = scripts.updatekeys:main
+teuthology = scripts.run:main
+teuthology-suite = scripts.suite:main
+teuthology-schedule = scripts.schedule:main
+

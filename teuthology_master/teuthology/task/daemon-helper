@@ -1,0 +1,112 @@
+#!/usr/bin/python
+
+"""
+Helper script for running long-living processes.
+
+(Name says daemon, but that is intended to mean "long-living", we
+assume child process does not double-fork.)
+
+We start the command passed as arguments, with /dev/null as stdin, and
+then wait for EOF on stdin.
+
+When EOF is seen on stdin, the child process is killed.
+
+When the child process exits, this helper exits too.
+
+Usage:
+    daemon-helper <signal> [--kill-group] [nostdin] COMMAND ...
+"""
+
+import fcntl
+import os
+import select
+import signal
+import struct
+import subprocess
+import sys
+from argparse import ArgumentParser
+
+parser = ArgumentParser(epilog=
+    'The remaining parameters are the command to be run.  If these\n' +
+    'parameters start wih nostdin, then no stdin input is expected.')
+parser.add_argument('signal')
+parser.add_argument('--kill-group', action='store_true', 
+                    help='kill all processes in the group')
+parser.add_argument('--nostdin', action='store_true', 
+                    help='no stdin input expected')
+parsed, args = parser.parse_known_args()
+end_signal = signal.SIGKILL
+if parsed.signal == 'term':
+    end_signal = signal.SIGTERM
+group = parsed.kill_group
+nostdin = parsed.nostdin
+skip_nostdin = 0
+try:
+    if args[0] == 'nostdin':
+        nostdin = True
+        skip_nostdin = 1
+except IndexError:
+    print 'No command specified'
+    sys.exit(1)
+
+
+proc = None
+if nostdin:
+    if len(args) - skip_nostdin == 0:
+        print 'No command specified'
+        sys.exit(1)
+    proc = subprocess.Popen(
+        args=args[skip_nostdin:],
+        )
+else:
+    with file('/dev/null', 'rb') as devnull:
+        proc = subprocess.Popen(
+            args=args,
+            stdin=devnull,
+            preexec_fn=os.setsid,
+            )
+
+flags = fcntl.fcntl(0, fcntl.F_GETFL)
+fcntl.fcntl(0, fcntl.F_SETFL, flags | os.O_NDELAY)
+
+saw_eof = False
+while True:
+    r,w,x = select.select([0], [], [0], 0.2)
+    if r:
+        data = os.read(0, 1)
+        if not data:
+            saw_eof = True
+            if not group:
+                proc.send_signal(end_signal)
+            else:
+                os.killpg(proc.pid, end_signal)
+            break
+        else:
+            sig, = struct.unpack('!b', data)
+            if not group:
+                proc.send_signal(sig)
+            else:
+                os.killpg(proc.pid, end_signal)
+
+
+    if proc.poll() is not None:
+        # child exited
+        break
+
+exitstatus = proc.wait()
+if exitstatus > 0:
+    print >>sys.stderr, '{me}: command failed with exit status {exitstatus:d}'.format(
+        me=os.path.basename(sys.argv[0]),
+        exitstatus=exitstatus,
+        )
+    sys.exit(exitstatus)
+elif exitstatus < 0:
+    if saw_eof and exitstatus == -end_signal:
+        # suppress error from the exit we intentionally caused
+        pass
+    else:
+        print >>sys.stderr, '{me}: command crashed with signal {signal:d}'.format(
+            me=os.path.basename(sys.argv[0]),
+            signal=-exitstatus,
+            )
+        sys.exit(1)

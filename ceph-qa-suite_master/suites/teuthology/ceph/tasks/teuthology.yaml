@@ -1,0 +1,4 @@
+tasks:
+    - chef:
+    - install:
+    - tests:
