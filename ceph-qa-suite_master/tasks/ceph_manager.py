@@ -997,6 +997,7 @@ class CephManager:
         """
         tries = 0
         while True:
+            time.sleep(0.5)
             proc = self.admin_socket(service_type, service_id,
                                      args, check_status=False)
             if proc.exitstatus is 0:
@@ -1684,6 +1685,20 @@ class CephManager:
         time.sleep(2)
         self.ctx.daemons.get_daemon('osd', osd).stop()
 
+    def revive_osd_anycloud(self, osd, timeout=150):
+        """
+        Revive osds by either power cycling (if indicated by the config)
+        or by restarting.
+        """
+        self.ctx.daemons.get_daemon('osd', osd).start_force()
+        # wait for dump_ops_in_flight; this command doesn't appear
+        # until after the signal handler is installed and it is safe
+        # to stop the osd again without making valgrind leak checks
+        # unhappy.  see #5924.
+        self.wait_run_admin_socket('osd', osd,
+                                   args=['dump_ops_in_flight'],
+                                   timeout=timeout)
+        
     def revive_osd(self, osd, timeout=150):
         """
         Revive osds by either power cycling (if indicated by the config)

@@ -883,7 +883,7 @@ def osd_scrub_pgs(ctx, config):
         log.info('Success for all pgs to be scrubbing...%s', prev_good)
 
 @contextlib.contextmanager
-def run_daemon(ctx, config, type_):
+def run_daemon(ctx, config, type_, mode=True):
     """
     Run daemons for a role type.  Handle the startup and termination of a a daemon.
     On startup -- set coverages, cpu_profile, valgrind values for all remotes,
@@ -945,6 +945,7 @@ def run_daemon(ctx, config, type_):
                                    logger=log.getChild(name),
                                    stdin=run.PIPE,
                                    wait=False,
+                                   mode=mode,
                                    )
 
     try:
@@ -1138,6 +1139,7 @@ def wait_for_failure(ctx, config):
 
 @contextlib.contextmanager
 def make_deamons_list(ctx, config):
+
     for type_ in ['mon','mds','osd','client','samba']:
         daemons = ctx.cluster.only(teuthology.is_type(type_))
         if daemons is None: continue
@@ -1281,9 +1283,12 @@ def task(ctx, config):
         log.info("'use_existing_cluster' is true; skipping cluster creation")
         with contextutil.nested(
             lambda: ceph_log(ctx=ctx, config=None),
-            lambda: make_deamons_list(ctx=ctx, config=None),
+            lambda: run_daemon(ctx=ctx, config=config, type_='mon', mode=False),
+#            lambda: make_deamons_list(ctx=ctx, config=None),
             lambda: crush_setup(ctx=ctx, config=config),
+            lambda: run_daemon(ctx=ctx, config=config, type_='osd', mode=False),
             lambda: cephfs_setup(ctx=ctx, config=config),
+            lambda: run_daemon(ctx=ctx, config=config, type_='mds', mode=False),
             ):
             try:
                 if config.get('wait-for-healthy', True):

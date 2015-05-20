@@ -1,5 +1,6 @@
 import logging
 import struct
+from cStringIO import StringIO
 
 from . import run
 
@@ -45,6 +46,44 @@ class DaemonState(object):
         run.wait([self.proc], timeout=timeout)
         self.proc = None
         self.log.info('Stopped')
+
+    def stop_force(self, timeout=300 ):
+        """
+        In existing_cluster stop command existing daemon instance.
+
+        :param timeout: timeout to pass to orchestra.run.wait()
+        """
+
+        self.log.info('stop_force.... daemon')
+        cmd_args = ['sudo', 'stop', 'ceph-osd']
+        osd_id = 'id=' + self.id_
+        cmd_args.append(osd_id)
+        self.log.info("cmd = {arg}".format(arg=cmd_args))
+        self.proc = self.remote.run(args=cmd_args, stdout=StringIO())
+        self.log.debug('waiting for process to exit')
+        run.wait([self.proc], timeout=timeout)
+        self.proc = None
+        self.log.info('Stopped')
+
+    def start_force(self, timeout=300 ):
+        """
+        In existing_cluster stop command existing daemon instance.
+
+        :param timeout: timeout to pass to orchestra.run.wait()
+        """
+
+        self.log.info('start_force.... daemon')
+        cmd_args = ['sudo', 'start', 'ceph-osd']
+        osd_id = 'id=' + self.id_
+        cmd_args.append(osd_id)
+        self.log.info("cmd = {arg}".format(arg=cmd_args))
+        self.proc = self.remote.run(args=cmd_args, stdout=StringIO())
+       
+        self.log.debug('waiting for process to start')
+        run.wait([self.proc], timeout=timeout)
+        self.proc = None
+        import time; time.sleep (1)
+        self.log.info('Started')
 
         """
         Wait for daemon to exit
@@ -161,9 +200,12 @@ class DaemonGroup(object):
         if id_ in self.daemons[role]:
             self.daemons[role][id_].stop()
             self.daemons[role][id_] = None
+        mode = kwargs.pop ("mode", True)
         self.daemons[role][id_] = DaemonState(remote, role, id_, *args,
                                               **kwargs)
-        self.daemons[role][id_].restart()
+
+        if mode:
+            self.daemons[role][id_].restart()
 
     def get_daemon(self, role, id_):
         """
