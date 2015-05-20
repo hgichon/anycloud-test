@@ -46,8 +46,7 @@ def task(ctx, config):
     dummyfile = '/etc/fstab'
 
     # take an osd out until the very end
-#    manager.kill_osd(2)
-    manager.ctx.daemons.get_daemon('osd', 2).stop_force()
+    manager.kill_osd(2)
     manager.mark_down_osd(2)
     manager.mark_out_osd(2)
 
@@ -71,8 +70,7 @@ def task(ctx, config):
             '--osd-recovery-delay-start 1000 --osd-min-pg-log-entries 100000000'
             )
 
-#    manager.kill_osd(0)
-    manager.ctx.daemons.get_daemon('osd', 0).stop_force()
+    manager.kill_osd(0)
     manager.mark_down_osd(0)
     
     for f in range(1, 10):
@@ -88,7 +86,7 @@ def task(ctx, config):
             '--osd-recovery-delay-start', '1000'
             ])
 #    manager.revive_osd(0)
-    manager.revive_osd_anycloud(0)
+    manager.revive_osd(0)
     manager.raw_cluster_cmd(
             'tell', 'osd.0',
             'injectargs',
@@ -103,14 +101,13 @@ def task(ctx, config):
     manager.wait_till_active()
 
     # take out osd.1 and the only copy of those objects.
-#    manager.kill_osd(1)
-    manager.ctx.daemons.get_daemon('osd', 1).stop_force()
+    manager.kill_osd(1)
     manager.mark_down_osd(1)
     manager.mark_out_osd(1)
     manager.raw_cluster_cmd('osd', 'lost', '1', '--yes-i-really-mean-it')
 
     # bring up osd.2 so that things would otherwise, in theory, recovery fully
-    manager.revive_osd_anycloud(2)
+    manager.revive_osd(2)
     manager.mark_in_osd(2)
     manager.wait_till_osd_is_up(2)
 
@@ -165,7 +162,7 @@ def task(ctx, config):
         assert not err
 
     # see if osd.1 can cope
-    manager.revive_osd_anycloud(1)
+    manager.revive_osd(1)
     manager.mark_in_osd(1)
     manager.wait_till_osd_is_up(1)
     manager.wait_for_clean()

@@ -1674,7 +1674,10 @@ class CephManager:
                                                 "Check ipmi config.")
             remote.console.power_off()
         else:
-            self.ctx.daemons.get_daemon('osd', osd).stop()
+            if self.ctx.config.get('use_existing_cluster', False) is True:
+                self.ctx.daemons.get_daemon('osd', osd).stop_force()
+            else:
+                self.ctx.daemons.get_daemon('osd', osd).stop()
 
     def blackhole_kill_osd(self, osd):
         """
@@ -1683,22 +1686,12 @@ class CephManager:
         self.raw_cluster_cmd('--', 'tell', 'osd.%d' % osd,
                              'injectargs', '--filestore-blackhole')
         time.sleep(2)
-        self.ctx.daemons.get_daemon('osd', osd).stop()
 
-    def revive_osd_anycloud(self, osd, timeout=150):
-        """
-        Revive osds by either power cycling (if indicated by the config)
-        or by restarting.
-        """
-        self.ctx.daemons.get_daemon('osd', osd).start_force()
-        # wait for dump_ops_in_flight; this command doesn't appear
-        # until after the signal handler is installed and it is safe
-        # to stop the osd again without making valgrind leak checks
-        # unhappy.  see #5924.
-        self.wait_run_admin_socket('osd', osd,
-                                   args=['dump_ops_in_flight'],
-                                   timeout=timeout)
-        
+        if self.ctx.config.get('use_existing_cluster', False) is True:
+            self.ctx.daemons.get_daemon('osd', osd).stop_force()
+        else:
+            self.ctx.daemons.get_daemon('osd', osd).stop()
+
     def revive_osd(self, osd, timeout=150):
         """
         Revive osds by either power cycling (if indicated by the config)
@@ -1721,7 +1714,12 @@ class CephManager:
             mount_osd_data(self.ctx, remote, str(osd))
             make_admin_daemon_dir(self.ctx, remote)
             self.ctx.daemons.get_daemon('osd', osd).reset()
-        self.ctx.daemons.get_daemon('osd', osd).restart()
+
+        if self.ctx.config.get('use_existing_cluster', False) is True:
+            self.ctx.daemons.get_daemon('osd', osd).start_force()
+        else:
+            self.ctx.daemons.get_daemon('osd', osd).restart()
+
         # wait for dump_ops_in_flight; this command doesn't appear
         # until after the signal handler is installed and it is safe
         # to stop the osd again without making valgrind leak checks

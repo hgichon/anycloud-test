@@ -40,9 +40,9 @@ def task(ctx, config):
     first_mon = teuthology.get_first_mon(ctx, config)
     (mon,) = ctx.cluster.only(first_mon).remotes.iterkeys()
 
-    num_osds = teuthology.num_instances_of_type(ctx.cluster, 'osd')
-    log.info('num_osds is %s' % num_osds)
-    assert num_osds == 3
+    #num_osds = teuthology.num_instances_of_type(ctx.cluster, 'osd')
+    #log.info('num_osds is %s' % num_osds)
+    #assert num_osds == 3
 
     manager = ceph_manager.CephManager(
         mon,

@@ -1,0 +1,43 @@
+job_id: '100085'
+name: scrub
+description: scrub
+use_existing_cluster: true
+check-locks: false
+suite_path: /home/teuthworker/src/ceph-qa-suite_master/
+verbose: True
+machine_type: 143VM-Ubuntu
+branch : 0.94.1-ubnutu
+suite : scrub
+user : kpkim
+roles:
+- [mon.node1, mds.0, osd.2, osd.3, osd.22]
+- [mon.node2, osd.4, osd.5, osd.23]
+- [mon.node3, osd.6, osd.7, osd.24]
+- [osd.0, osd.8, osd.9]
+- [osd.1, osd.10, osd.11]
+- [osd.12, osd.13, osd.25]
+- [osd.14, osd.15, osd.26]
+- [osd.16, osd.17, osd.27]
+- [osd.18, osd.19, osd.28]
+- [osd.20, osd.21, osd.29]
+- [client.0]
+- [client.1]
+targets:
+  ubuntu@node1.gluesys.com: 
+  ubuntu@node2.gluesys.com: 
+  ubuntu@node3.gluesys.com: 
+  ubuntu@node4.gluesys.com: 
+  ubuntu@node5.gluesys.com: 
+  ubuntu@node6.gluesys.com: 
+  ubuntu@node7.gluesys.com: 
+  ubuntu@node8.gluesys.com: 
+  ubuntu@node9.gluesys.com: 
+  ubuntu@node10.gluesys.com:
+  ubuntu@teuthology-c1.gluesys.com:
+  ubuntu@teuthology-c2.gluesys.com:
+tasks:
+- install:
+- ceph:
+- scrub:
+    frequency: 30
+    deep: 0
