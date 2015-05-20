@@ -153,20 +153,15 @@ class Filesystem(object):
         return self.json_asok(['config', 'get', key], service_type, service_id)[key]
 
     def set_ceph_conf(self, subsys, key, value):
-        if 'ceph' not in self._ctx:
-            temp_dict = {}
-            self._ctx['ceph'] = {}
-            self._ctx.ceph['conf'] = {}
-        if subsys not in self._ctx.ceph['conf']:
-            self._ctx.ceph['conf'][subsys] = {}
-        self._ctx.ceph['conf'][subsys][key] = value
-        log.info(self._ctx.ceph['conf'])
-#        write_conf(self._ctx)  # XXX because we don't have the ceph task's config object, if they
+        if subsys not in self._ctx.ceph.conf:
+            self._ctx.ceph.conf[subsys] = {}
+        self._ctx.ceph.conf[subsys][key] = value
+        write_conf(self._ctx)  # XXX because we don't have the ceph task's config object, if they
                          # used a different config path this won't work.
 
     def clear_ceph_conf(self, subsys, key):
-        del self._ctx.ceph['conf'][subsys][key]
-#        write_conf(self._ctx)
+        del self._ctx.ceph.conf[subsys][key]
+        write_conf(self._ctx)
 
     def are_daemons_healthy(self):
         """
@@ -426,6 +421,14 @@ class Filesystem(object):
     def is_full(self):
         flags = json.loads(self.mon_manager.raw_cluster_cmd("osd", "dump", "--format=json-pretty"))['flags']
         return 'full' in flags
+
+    def is_pool_full(self, pool_name):
+        pools = json.loads(self.mon_manager.raw_cluster_cmd("osd", "dump", "--format=json-pretty"))['pools']
+        for pool in pools:
+            if pool['pool_name'] == pool_name:
+                return 'full' in pool['flags_names'].split(",")
+
+        raise RuntimeError("Pool not found '{0}'".format(pool_name))
 
     def wait_for_state(self, goal_state, reject=None, timeout=None, mds_id=None):
         """
