@@ -1160,6 +1160,65 @@ def make_deamons_list(ctx, config):
 
 
 @contextlib.contextmanager
+def create_ceph_conf(ctx, config):
+
+    devs_to_clean = {}
+    remote_to_roles_to_devs = {}
+    remote_to_roles_to_journals = {}
+    osds = ctx.cluster.only(teuthology.is_type('osd'))
+    for remote, roles_for_host in osds.remotes.iteritems():
+        devs = teuthology.get_scratch_devices(remote)
+        roles_to_devs = {}
+        roles_to_journals = {}
+        if config.get('fs'):
+            log.info('fs option selected, checking for scratch devs')
+            log.info('found devs: %s' % (str(devs),))
+            devs_id_map = teuthology.get_wwn_id_map(remote, devs)
+            iddevs = devs_id_map.values()
+            roles_to_devs = assign_devs(
+                teuthology.roles_of_type(roles_for_host, 'osd'), iddevs
+                )
+            if len(roles_to_devs) < len(iddevs):
+                iddevs = iddevs[len(roles_to_devs):]
+            devs_to_clean[remote] = []
+
+        if config.get('block_journal'):
+            log.info('block journal enabled')
+            roles_to_journals = assign_devs(
+                teuthology.roles_of_type(roles_for_host, 'osd'), iddevs
+                )
+            log.info('journal map: %s', roles_to_journals)
+
+        if config.get('tmpfs_journal'):
+            log.info('tmpfs journal enabled')
+            roles_to_journals = {}
+            remote.run( args=[ 'sudo', 'mount', '-t', 'tmpfs', 'tmpfs', '/mnt' ] )
+            for osd in teuthology.roles_of_type(roles_for_host, 'osd'):
+                tmpfs = '/mnt/osd.%s' % osd
+                roles_to_journals[osd] = tmpfs
+                remote.run( args=[ 'truncate', '-s', '1500M', tmpfs ] )
+            log.info('journal map: %s', roles_to_journals)
+
+        log.info('dev map: %s' % (str(roles_to_devs),))
+        remote_to_roles_to_devs[remote] = roles_to_devs
+        remote_to_roles_to_journals[remote] = roles_to_journals
+
+    log.info('Generating config...')
+    remotes_and_roles = ctx.cluster.remotes.items()
+    roles = [role_list for (remote, role_list) in remotes_and_roles]
+    ips = [host for (host, port) in (remote.ssh.get_transport().getpeername() for (remote, role_list) in remotes_and_roles)]
+    conf = teuthology.skeleton_config(ctx, roles=roles, ips=ips)
+
+    ctx.ceph = argparse.Namespace()
+    ctx.ceph.conf = conf
+
+    log.info(ctx)
+    
+    yield
+    
+
+
+@contextlib.contextmanager
 def task(ctx, config):
     """
     Set up and tear down a Ceph cluster.
@@ -1283,6 +1342,7 @@ def task(ctx, config):
         log.info("'use_existing_cluster' is true; skipping cluster creation")
         with contextutil.nested(
             lambda: ceph_log(ctx=ctx, config=None),
+            lambda: create_ceph_conf(ctx=ctx, config=config),
             lambda: run_daemon(ctx=ctx, config=config, type_='mon', mode=False),
 #            lambda: make_deamons_list(ctx=ctx, config=None),
             lambda: crush_setup(ctx=ctx, config=config),

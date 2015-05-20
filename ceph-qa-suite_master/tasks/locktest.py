@@ -56,7 +56,11 @@ def task(ctx, config):
                     'https://raw.github.com/gregsfortytwo/xfstests-ceph/master/src/locktest.c',
                     '-O', '{tdir}/locktest/locktest.c'.format(tdir=testdir),
                     run.Raw('&&'),
-                    'g++', '{tdir}/locktest/locktest.c'.format(tdir=testdir),
+                    'sed', '157 s/char/const char/', '{tdir}/locktest/locktest.c'.format(tdir=testdir),
+                    run.Raw('|'),
+                    'cat', run.Raw('>'), '{tdir}/locktest/new_locktest.c'.format(tdir=testdir),
+                    run.Raw('&&'),
+                    'g++', '{tdir}/locktest/new_locktest.c'.format(tdir=testdir),
                     '-o', '{tdir}/locktest/locktest'.format(tdir=testdir)
                     ],
                 logger=log.getChild('locktest_client.{id}'.format(id=client_name)),
@@ -85,6 +89,8 @@ def task(ctx, config):
             )
         log.info('starting on client')
         (_,_,hostaddr) = host.name.partition('@')
+        import time
+        time.sleep(1)
         clientproc = client.run(
             args=[
                 '{tdir}/locktest/locktest'.format(tdir=testdir),
@@ -124,6 +130,8 @@ def task(ctx, config):
                 'mkdir', '-p', '{tdir}/locktest'.format(tdir=testdir),
                 run.Raw('&&'),
                 'rm', '-f', '{tdir}/locktest/locktest.c'.format(tdir=testdir),
+                run.Raw('&&'),
+                'rm', '-f', '{tdir}/locktest/new_locktest.c'.format(tdir=testdir),
                 run.Raw('&&'),
                 'rm', '-f', '{tdir}/locktest/locktest'.format(tdir=testdir),
                 run.Raw('&&'),
