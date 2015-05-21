@@ -1,0 +1,30 @@
+job_id: '100003'
+name: rados_test
+description: radosModel-based integration tests
+use_existing_cluster: true
+check-locks: false
+suite_path: /home/teuthology/src/ceph-qa-suite_master/
+verbose: True
+wait-for-scrub: False
+roles:
+- [mon.target1, mds.0, osd.0, osd.1]
+- [mds.one, osd.2, osd.3]
+- [mds.zero, client.0, osd.4, osd.5]
+- [client.1]
+targets:
+  ubuntu@target1.gluesys.com:
+  ubuntu@target2.gluesys.com:
+  ubuntu@target3.gluesys.com:
+  ubuntu@target4.gluesys.com:
+tasks:
+- rados:
+   clients: [client.0]
+   pools: [rbd]
+   ops: 40
+   objects: 5
+   max_in_flight: 2
+   op_weights:
+     read: 10
+     write: 10
+     delete: 5
+     copy_from: 5

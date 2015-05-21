@@ -1,0 +1,21 @@
+job_id: '100003'
+name: samba_mount
+description: Setup samba smbd with ceph vfs module. This task assumes the samba package has already been installed 
+use_existing_cluster: true
+check-locks: false
+suite_path: /home/teuthology/src/ceph-qa-suite_master/
+verbose: True
+wait-for-scrub: False
+roles:
+- [mon.target1, osd.0, osd.1]
+- [mds.zero, osd.2, osd.3]
+- [client.0, samba.0, osd.4, osd.5]
+- [client.1, samba.1]
+targets:
+  ubuntu@target1.gluesys.com:
+  ubuntu@target2.gluesys.com:
+  ubuntu@target3.gluesys.com:
+  ubuntu@target4.gluesys.com:
+tasks:
+- ceph:
+- samba: [samba.0, samba.1]

@@ -1,0 +1,19 @@
+job_id: '100003'
+name: kclient
+description: Mount/unmount a ``kernel`` client.
+use_existing_cluster: true
+check-locks: false
+suite_path: /home/teuthology/src/ceph-qa-suite_master/
+verbose: True
+wait-for-scrub: False
+roles:
+- [mon.target1, osd.0, osd.1]
+- [mds.one, client.0, osd.2, osd.3]
+- [mds.zero, client.1, osd.4, osd.5]
+targets:
+  ubuntu@target1.gluesys.com:
+  ubuntu@target2.gluesys.com:
+  ubuntu@target3.gluesys.com:
+tasks:
+  - ceph:
+  - kclient:
