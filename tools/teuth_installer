@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# File Name : teuth_installer.sh
+# Description : teuthology oneshot install & initial setup tool
+# Referrence : https://github.com/ceph/teuthology/blob/master/docs/LAB_SETUP.rst
+# Developer : hgichon (kpkim@gluesys.com)
+# Manager : is not managed
+# Version : 0.1
+# ChangeLog
+#	Tue May 26 16:05:31 KST 2015 - init work
+
+mode=$1
+fast=$2
+
+log=/var/log/teuthology/teuth_install.log
+
+passwd=1
+paddles_ip="192.168.2.35"
+teuthworker_ip="192.168.2.35"
+requirement="git python-dev python-pip python-virtualenv libevent-dev python-libvirt beanstalkd libmysqlclient-dev postgresql postgresql-contrib postgresql-server-dev-all supervisor expect nginx"
+
+declare -A nodes
+nodes=( ["teuthworker"]="$teuthworker_ip" \
+	["node1"]="192.168.3.4" \
+        ["node2"]="192.168.3.5" \
+        ["node3"]="192.168.3.6" \
+        ["node4"]="192.168.3.7" \
+        ["node5"]="192.168.3.8" \
+        ["node6"]="192.168.3.9" \
+        ["node7"]="192.168.3.10" \
+        ["node8"]="192.168.3.11" \
+        ["node9"]="192.168.3.12" \
+        ["node10"]="192.168.3.14" \
+)
+
+install_base() {
+	echo "[INSTALL] Ubuntu Dist Upgrade"
+	mkdir -p /var/log/teuthology 
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir /var/log/teuthology"
+	chmod 777 /var/log/teuthology 
+	[ "$fast" = "fast" ] || sudo apt-get update >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] apt update"
+	[ "$fast" = "fast" ] || sudo apt-get upgrade -y >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] apt upgrade"
+	[ "$fast" = "fast" ] || sudo apt-get install -y $requirement >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] install base packages"
+}
+
+install_paddles()
+{
+	echo "[INSTALL] Install Paddles"
+
+	sudo useradd paddles -d /home/paddles -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] add paddles user"
+	echo "paddles:$passwd" | chpasswd -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] set passwd=$passwd"
+
+	expect -c "
+       		spawn sudo -u postgres createuser paddles -P 
+       		expect  \"new role:\" { send \"$passwd\r\" }
+		expect  \"again:\" { send \"$passwd\n\" ; interact}
+	"
+
+	[ $? != 0 ] && exit || echo "    [DONE] postgresql createuser paddles"
+	sudo -u postgres createdb paddles >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] postgresql createdb paddles"
+
+	cd /home/paddles >> $log 2>&1
+	sudo -u paddles git clone https://github.com/ceph/paddles.git >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] clone paddles.git"
+	cd paddles >> $log 2>&1
+	sudo -u paddles virtualenv ./virtualenv >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] make virtualenv"
+	sudo -u paddles cp config.py.in config.py >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] copy config.py"
+
+	sed -i "/^address = /c\address = 'http://localhost'" config.py  >> $log 2>&1
+	sed -i "/ 'url': /c\    'url': 'postgresql+psycopg2://paddles:$passwd@localhost/paddles'," config.py >> $log 2>&1
+	sed -i "/^job_log_href_templ/c\job_log_href_templ = 'http://$teuthworker_ip/{run_name}/{job_id}/teuthology.log'" config.py  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] edit config.py"
+
+	. ./virtualenv/bin/activate >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] activate virtualenv"
+	pip install -r requirements.txt >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] pip installing"
+	python setup.py develop >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] setup.py developing"
+	pecan populate config.py >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] populate config.py"
+	cp alembic.ini.in alembic.ini >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] copy alembic.ini"
+	sed -i "/sqlalchemy.url = /c\sqlalchemy.url = postgresql+psycopg2://paddles:$passwd@localhost/paddles" alembic.ini >> $log 4>&1
+	[ $? != 0 ] && exit || echo "    [DONE] edit alembic.ini"
+	alembic stamp head >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] alembic stamp head"
+	deactivate
+	[ $? != 0 ] && exit || echo "    [DONE] deactivate virtualenv"
+	
+
+	cp supervisord_paddles.conf /etc/supervisor/conf.d/paddles.conf  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] copy supervior paddles.conf"
+	sed -i "/^stdout_logfile/c\stdout_logfile = /var/log/teuthology/paddles.out.log" /etc/supervisor/conf.d/paddles.conf  >> $log 2>&1
+	sed -i "/^stderr_logfile/c\stderr_logfile = /var/log/teuthology/paddles.err.log" /etc/supervisor/conf.d/paddles.conf  >> $log 2>&1
+	sed -i "/^accesslog/c\accesslog = os.path.join(\"/var/log/teuthology\",\"paddles.access.log\")" /home/paddles/paddles/gunicorn_config.py >> $log 2>&1
+	sed -i "/errorlog/c\errorlog = os.path.join(\"/var/log/teuthology\",\"paddles.error.log\")" /home/paddles/paddles/gunicorn_config.py >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] edit supervior paddles.conf"
+	supervisorctl reread && supervisorctl update paddles && supervisorctl start paddles >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] register paddles with superviosor "
+}
+
+install_pulpito()
+{
+	echo "[INSTALL] Install Pulpito"
+
+	useradd pulpito -d /home/pulpito -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	echo "pulpito:1" | chpasswd -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+
+	cd /home/pulpito >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	sudo -u pulpito git clone https://github.com/ceph/pulpito.git >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	cd pulpito >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	virtualenv ./virtualenv >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	cp config.py.in prod.py >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	sed -i "/^paddles_address = /c\paddles_address = 'http://localhost:8080'" prod.py  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+
+	. ./virtualenv/bin/activate >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	pip install -r requirements.txt >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	deactivate
+	[ $? != 0 ] && exit || echo "    [DONE]"
+
+	cp supervisord_pulpito.conf /etc/supervisor/conf.d/pulpito.conf  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	sed -i "/^environment=TZ/c\environment=TZ='Asia/Seoul'" /etc/supervisor/conf.d/pulpito.conf  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	sed -i "/^stdout_logfile/c\stdout_logfile = /var/log/teuthology/pulpito.out.log" /etc/supervisor/conf.d/pulpito.conf  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	sed -i "/^stderr_logfile/c\stderr_logfile = /var/log/teuthology/pulpito.err.log" /etc/supervisor/conf.d/pulpito.conf  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+	supervisorctl reread && supervisorctl update pulpito && supervisorctl start pulpito >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE]"
+}
+
+install_teuthology_base() {
+	echo "[INSTALL] Install Teuthology NODE"
+
+	echo "lab_domain: gluesys.com" > /etc/teuthology.yaml
+	echo "lock_server: http://localhost:8080" >> /etc/teuthology.yaml
+	echo "results_server: http://localhost:8080" >> /etc/teuthology.yaml
+	echo "queue_host: localhost" >> /etc/teuthology.yaml
+	echo "queue_port: 11300" >> /etc/teuthology.yaml
+	echo "results_email: rnd@gluesys.com" >> /etc/teuthology.yaml
+	echo "archive_base: /home/teuthworker/archive" >> /etc/teuthology.yaml
+	[ $? != 0 ] && exit || echo "    [DONE] make /etc/teuthology.yaml"
+	
+	useradd ubuntu -d /home/ubuntu -m >> $log 2>&1
+	echo "    [DONE] useradd ubuntu"
+	echo "ubuntu:$passwd" | chpasswd -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] reset passwd : $passwd"
+	useradd teuthology -d /home/teuthology -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] useradd teuthology"
+	echo "teuthology:$passwd" | chpasswd -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] reset passwd : $passwd"
+	useradd teuthworker -d /home/teuthworker -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] useradd teuthworker"
+	echo "teuthworker:$passwd" | chpasswd -m >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] reset passwd : $passwd"
+
+	echo "ubuntu   ALL =(ALL)NOPASSWD: ALL" >> /etc/sudoers
+	echo "teuthology   ALL =(ALL)NOPASSWD: ALL" >> /etc/sudoers
+	echo "teuthworker   ALL =(ALL)NOPASSWD: ALL" >> /etc/sudoers
+	[ $? != 0 ] && exit || echo "    [DONE] add ubuntu,teuthology,teuthworker to /etc/sudoers"
+
+	ssh-keygen -f /tmp/id_rsa -N "" >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] ssh-keygen /tmp/id_rsa"
+	chmod 777 /tmp/id_rsa* >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] chmod 777 /tmp/id_rsa*"
+	sudo -u ubuntu mkdir -p /home/ubuntu/.ssh
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir ubuntu/.ssh"
+	cp /tmp/id_rsa* /home/ubuntu/.ssh/ >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] copy ssh-key to ubuntu"
+	sudo -u teuthworker mkdir -p /home/teuthworker/.ssh
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir teuthworker/.ssh"
+	cp /tmp/id_rsa* /home/teuthworker/.ssh/ >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] copy ssh-key to teuthworker"
+	sudo -u teuthology mkdir -p /home/teuthology/.ssh
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir teuthology/.ssh"
+	cp /tmp/id_rsa* /home/teuthology/.ssh/ >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] copy ssh-key to teuthology"
+}
+
+install_scheduler() {
+
+	echo "[INSTALL] Install Scheduler (teuthology user)"
+
+	cd /home/teuthology
+	[ $? != 0 ] && exit || echo "    [DONE] cd ~teuthology"
+	sudo -u teuthology mkdir src >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir src"
+	sudo -u teuthology git clone https://github.com/hgichon/anycloud-test.git src/ >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] git clone anycloude-test.git"
+}
+
+install_worker() {
+
+	echo "[INSTALL] Install Worker (teuthworker user)"
+
+	cd /home/teuthworker
+	[ $? != 0 ] && exit || echo "    [DONE] cd ~teuthworker"
+	sudo -u teuthworker mkdir src >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir src"
+	sudo -u teuthworker git clone https://github.com/hgichon/anycloud-test.git src/ >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] git clone anycloud-test.git"
+	sudo -u teuthworker mkdir bin >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir bin"
+	sudo -u teuthworker wget -O /home/teuthworker/bin/worker_start http://down.gluesys.com/Teuthology/worker_start.sh >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] wget worker_start to bin"
+	sudo -u teuthworker chmod 775 bin/worker_start >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] chmod 755 worker_start"
+	sudo -u teuthworker echo 'PATH="$HOME/src/teuthology_master/virtualenv/bin:$PATH"' >> /home/teuthworker/.profile
+	[ $? != 0 ] && exit || echo "    [DONE] add PATH to profile"
+	sudo -u teuthworker mkdir -p /home/teuthworker/archive/worker_logs >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] mkdir archive/worker_logs"
+#	sudo -u teuthworker worker_start magna 1 >> $log 2>&1
+#	[ $? != 0 ] && exit || echo "    [DONE] worker_start magna 1"
+}
+
+install_nginx () {
+
+	echo "[INSTALL] Install nginx web server"
+
+	echo "server {" > /etc/nginx/conf.d/teuthology.conf
+        echo "	allow all;" >> /etc/nginx/conf.d/teuthology.conf
+        echo "	autoindex on;" >> /etc/nginx/conf.d/teuthology.conf
+        echo "	server_name test_logs.gluesys.com;" >> /etc/nginx/conf.d/teuthology.conf
+        echo "	root /home/teuthworker/archive;" >> /etc/nginx/conf.d/teuthology.conf
+        echo "	default_type text/plain;" >> /etc/nginx/conf.d/teuthology.conf
+	echo "	}" >> /etc/nginx/conf.d/teuthology.conf
+	[ $? != 0 ] && exit || echo "    [DONE] add teuthology.conf"
+	rm /etc/nginx/sites-enabled/default >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] remove default site"
+	/etc/init.d/nginx restart  >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [DONE] restart nginx"
+}
+
+install_node () {
+
+    	echo "[INSTALL] Install NODEs"
+
+	for node in "${!nodes[@]}";
+	do
+		echo "${nodes["$node"]} $node.gluesys.com" >> /etc/hosts
+	expect -c "
+       		spawn sudo -H -u teuthworker ssh-copy-id ubuntu@$node.gluesys.com
+       		expect  \"(yes/no)?\" { send \"yes\r\" }
+		expect  \"password:\" { send \"1\n\" ; interact}
+	"
+	done
+}
+
+check_last () {
+	echo "[INSTALL] All install procedure done!!!"
+	echo "[Starting]Checking"
+	echo "		worker_start magna 5"
+	sudo -H -i -u teuthworker worker_start magna 1 >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [OK] start worker Queue process"
+	sudo -u teuthworker mkdir -p /home/teuthworker/archive/install-test/ >> $log 2>&1
+	echo "		teuthology -v src/yaml/install-test.yaml -a archive/install-test/000000"
+	sudo -H -i -u teuthworker teuthology -v src/yaml/install-test.yaml -a archive/install-test/000000 >> $log 2>&1
+	[ $? != 0 ] && exit || echo "    [OK] basic ceph task for existing cluster"
+	echo "	WEB Connect $paddles_ip:8081 for pulpito dashboard"
+	echo "	su - teuthworker"
+	echo "Good Luck!"
+}
+
+if [ "$mode" = "all" ]; then
+
+    	echo "[AllInOne] Install Teuthwoker/Paddles... Install"
+
+	install_base		
+	install_paddles
+	install_pulpito
+	install_teuthology_base
+	install_scheduler
+	install_worker
+	install_nginx
+	install_node
+	check_last
+
+
+elif [ "$mode" = "worker" ]; then
+    	echo "[Worker] Install TeuthWorker... Install"
+elif [ "$mode" = "paddles" ]; then
+    	echo "[Paddles] Install /Paddles... Install"
+elif [ "$mode" = "node" ]; then
+    	echo "[NODE] Install NODES...... Install"
+	install_node
+else
+	echo "Usage: $0 {all|worker|paddles}"
+	exit 1;
+fi
