@@ -74,7 +74,6 @@ def main(ctx):
         teuth_config.archive_base = ctx.archive_dir
 
     read_config(ctx)
-    log.info(ctx)
 
     connection = beanstalk.connect()
     beanstalk.watch_tube(connection, ctx.tube)
@@ -227,8 +226,6 @@ def run_job(job_config, teuth_bin_path):
         arg.append('-v')
 
     arg.extend([
-#        '--lock',
-#        '--block',
         '--owner', job_config['owner'],
         '--archive', job_config['archive_path'],
         '--name', job_config['name'],
