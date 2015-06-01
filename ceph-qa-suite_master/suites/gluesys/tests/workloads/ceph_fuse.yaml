@@ -1,2 +1,3 @@
 tasks:
+- ceph:
 - ceph_fuse:

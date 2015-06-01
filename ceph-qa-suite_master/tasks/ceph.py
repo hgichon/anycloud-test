@@ -203,10 +203,7 @@ def cephfs_setup(ctx, config):
 
         ceph_fs = Filesystem(ctx)
         if not ceph_fs.legacy_configured():
-            if ctx.config.get('use_existing_cluster', False) is True:
-                log.info("'use_existing_cluster' is true; skipping cluster creation")
-            else:
-                ceph_fs.create()
+            ceph_fs.create()
 
         is_active_mds = lambda role: role.startswith('mds.') and not role.endswith('-s') and role.find('-s-') == -1
         all_roles = [item for remote_roles in mdss.remotes.values() for item in remote_roles]
