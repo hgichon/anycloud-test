@@ -33,8 +33,6 @@ def build_config(args):
     conf_dict = merge_configs(config_paths)
     # strip out targets; the worker will allocate new ones when we run
     # the job with --lock.
-    if 'targets' in conf_dict:
-        del conf_dict['targets']
     args['config'] = conf_dict
 
     owner = args['--owner']

@@ -70,7 +70,7 @@ def main(args):
     if suite_dir:
         suite_repo_path = suite_dir
     else:
-        suite_repo_path = fetch_repos(job_config.suite_branch, test_name=name)
+        suite_repo_path = os.path.expanduser('~/src/ceph-qa-suite_master')
 
     job_config.name = name
     job_config.priority = priority
@@ -283,18 +283,18 @@ def prepare_and_schedule(job_config, suite_repo_path, base_yaml_paths, limit,
         filter_out=filter_out,
     )
 
-    if job_config.email and num_jobs:
-        arg = copy.deepcopy(base_args)
-        arg.append('--last-in-suite')
-        arg.extend(['--email', job_config.email])
-        if timeout:
-            arg.extend(['--timeout', timeout])
-        if dry_run:
-            log.info('dry-run: %s' % ' '.join(arg))
-        else:
-            subprocess.check_call(
-                args=arg,
-            )
+#    if job_config.email and num_jobs:
+#        arg = copy.deepcopy(base_args)
+#        arg.append('--last-in-suite')
+#        arg.extend(['--email', job_config.email])
+#        if timeout:
+#            arg.extend(['--timeout', timeout])
+#        if dry_run:
+#            log.info('dry-run: %s' % ' '.join(arg))
+#        else:
+#            subprocess.check_call(
+#                args=arg,
+#            )
 
 
 def schedule_fail(message, name=''):
@@ -504,6 +504,7 @@ def schedule_suite(job_config,
         raw_yaml = '\n'.join([file(a, 'r').read() for a in fragment_paths])
 
         parsed_yaml = yaml.load(raw_yaml)
+
         os_type = parsed_yaml.get('os_type') or job_config.os_type
         exclude_arch = parsed_yaml.get('exclude_arch')
         exclude_os_type = parsed_yaml.get('exclude_os_type')
@@ -568,6 +569,7 @@ def schedule_suite(job_config,
                 prefix = "dry-run (missing packages):"
             log.info('%s %s' % (prefix, ' '.join(printable_args)))
         else:
+            log.info(job['args'])
             subprocess.check_call(
                 args=job['args'],
             )
@@ -817,7 +819,7 @@ dict_templ = {
     'sha1': Placeholder('ceph_hash'),
     'teuthology_branch': Placeholder('teuthology_branch'),
     'machine_type': Placeholder('machine_type'),
-    'nuke-on-error': True,
+    'nuke-on-error': False, #True,
     'os_type': Placeholder('distro'),
     'overrides': {
         'admin_socket': {

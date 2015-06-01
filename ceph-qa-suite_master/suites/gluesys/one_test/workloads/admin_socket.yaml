@@ -1,0 +1,11 @@
+tasks:
+- admin_socket:
+    mon.target1:
+      perfcounters_schema:
+      perfcounters_dump:
+      mon_status:
+      perf schema:
+      log dump:
+      help:
+      log reopen:
+      log flush:

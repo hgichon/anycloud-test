@@ -1,0 +1,4 @@
+tasks:
+- ceph:
+- ceph-fuse: [client.0, client.1]
+- locktest: [client.0, client.1]

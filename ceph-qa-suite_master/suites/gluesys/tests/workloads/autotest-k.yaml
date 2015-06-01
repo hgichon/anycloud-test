@@ -1,0 +1,7 @@
+tasks:
+- install:
+- ceph:
+- kclient: [client.0, client.1]
+- autotest:
+    client.0: [dbench]
+    client.1: [bonnie]

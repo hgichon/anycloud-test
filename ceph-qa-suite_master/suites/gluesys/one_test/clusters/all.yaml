@@ -1,0 +1,12 @@
+#roles:
+#- [mon.target1, mds.one, osd.0, osd.1, client.0]
+#- [mon.target2, mds.two, osd.2, osd.3, client.1]
+#- [mon.target3, mds.three, osd.4, osd.5, client.2]
+#- [mon.target4, mds.four, osd.6, osd.7, client.3]
+#- [mon.target5, mds.five, osd.8, osd.9, client.4]
+roles:
+- [mon.target1, osd.0, osd.1]
+- [mds.one, osd.2, osd.3]
+- [mds.two, osd.4, osd.5, client.0]
+- [mds.three, osd.6, osd.7, client.1]
+- [osd.8, osd.9, client.2]

@@ -1,0 +1,6 @@
+tasks:
+- install:
+- ceph:
+- rados_bench:
+    clients: [client.0]
+    time: 360

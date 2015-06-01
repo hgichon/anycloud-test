@@ -1,0 +1,6 @@
+tasks:
+- install:
+- ceph:
+- scrub:
+    frequency: 30
+    deep: 0

@@ -1,0 +1,3 @@
+tasks:
+- ceph:
+- populate_rbd_pool:

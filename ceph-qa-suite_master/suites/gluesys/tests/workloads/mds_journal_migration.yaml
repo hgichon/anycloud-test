@@ -1,0 +1,4 @@
+tasks:
+- ceph:
+- ceph_fuse: [client.0, client.1]
+- mds_journal_migration:

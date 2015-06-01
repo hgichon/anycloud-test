@@ -1,0 +1,4 @@
+tasks:
+- ceph:
+- rbd_fsx:
+    clients: [client.0, client.1]

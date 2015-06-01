@@ -74,13 +74,12 @@ def main(ctx):
         teuth_config.archive_base = ctx.archive_dir
 
     read_config(ctx)
+    log.info(ctx)
 
     connection = beanstalk.connect()
     beanstalk.watch_tube(connection, ctx.tube)
     result_proc = None
 
-    fetch_teuthology('master')
-    fetch_qa_suite('master')
 
     while True:
         # Check to see if we have a teuthology-results process hanging around
@@ -114,22 +113,8 @@ def main(ctx):
         # store that value.
         teuthology_branch = job_config.get('teuthology_branch', 'master')
         job_config['teuthology_branch'] = teuthology_branch
-
-        try:
-            teuth_path = fetch_teuthology(branch=teuthology_branch)
-            # For the teuthology tasks, we look for suite_branch, and if we
-            # don't get that, we look for branch, and fall back to 'master'.
-            # last-in-suite jobs don't have suite_branch or branch set.
-            ceph_branch = job_config.get('branch', 'master')
-            suite_branch = job_config.get('suite_branch', ceph_branch)
-            job_config['suite_path'] = fetch_qa_suite(suite_branch)
-        except BranchNotFoundError as exc:
-            log.exception("Branch not found; marking job as dead")
-            report.try_push_job_info(
-                job_config,
-                dict(status='dead', failure_reason=str(exc))
-            )
-            continue
+        teuth_path = os.path.expanduser('~/src/teuthology_master/')
+        job_config['suite_path'] = os.path.expanduser('~/src/ceph-qa-suite_master/')
 
         teuth_bin_path = os.path.join(teuth_path, 'virtualenv', 'bin')
         if not os.path.isdir(teuth_bin_path):
@@ -242,8 +227,8 @@ def run_job(job_config, teuth_bin_path):
         arg.append('-v')
 
     arg.extend([
-        '--lock',
-        '--block',
+#        '--lock',
+#        '--block',
         '--owner', job_config['owner'],
         '--archive', job_config['archive_path'],
         '--name', job_config['name'],

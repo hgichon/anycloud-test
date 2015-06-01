@@ -1,0 +1,4 @@
+use_existing_cluster: true
+check-locks: false
+suite_path: /home/teuthworker/src/ceph-qa-suite_master/
+wait-for-scrub: False
