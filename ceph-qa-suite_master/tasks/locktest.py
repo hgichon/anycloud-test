@@ -2,6 +2,7 @@
 locktests
 """
 import logging
+import os
 
 from teuthology.orchestra import run
 from teuthology import misc as teuthology
@@ -88,7 +89,12 @@ def task(ctx, config):
             logger=log.getChild('locktest.host'),
             )
         log.info('starting on client')
-        (_,_,hostaddr) = host.name.partition('@')
+        (_,_,hostname) = host.name.partition('@')
+        cmd = "cat " + "/etc/hosts" + " |" + "grep " + hostname + " |" + "awk " + "'{print $1}'"
+        log.info(cmd)
+        (_,cmd_out,_) = os.popen3(cmd)
+        hostaddr = cmd_out.readlines()[0][:-1]
+        
         import time
         time.sleep(1)
         clientproc = client.run(
