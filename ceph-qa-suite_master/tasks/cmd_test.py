@@ -62,7 +62,7 @@ cmd_list = [
     "ceph osd erasure-code-profile ls",
     "ceph osd getmaxosd",
     "ceph osd ls",
-        "ceph osd lspools",
+    "ceph osd lspools",
     "ceph osd pool ls",
     "ceph osd pool stats",
     "ceph osd pool get {pool_name} pg_num",
