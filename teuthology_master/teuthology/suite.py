@@ -182,50 +182,6 @@ def create_initial_config(suite, suite_branch, ceph_branch, teuthology_branch,
     ceph_hash = None
     ceph__branch = 'hammer'
 
-    # Get the ceph hash
-#    ceph_hash = get_hash('ceph', ceph_branch, kernel_flavor, machine_type,
-#                         distro)
-#    if not ceph_hash:
-#        exc = BranchNotFoundError(ceph_branch, 'ceph.git')
-#        schedule_fail(message=str(exc), name=name)
-#    log.info("ceph sha1: {hash}".format(hash=ceph_hash))
-#
-#    # Get the ceph package version
-#    ceph_version = package_version_for_hash(ceph_hash, kernel_flavor,
-#                                            distro, machine_type)
-#    if not ceph_version:
-#        schedule_fail("Packages for ceph hash '{ver}' not found".format(
-#            ver=ceph_hash), name)
-#    log.info("ceph version: {ver}".format(ver=ceph_version))
-#
-#    if teuthology_branch:
-#        if not get_branch_info('teuthology', teuthology_branch):
-#            exc = BranchNotFoundError(teuthology_branch, 'teuthology.git')
-#            schedule_fail(message=str(exc), name=name)
-#    else:
-#        # Decide what branch of teuthology to use
-#        if get_branch_info('teuthology', ceph_branch):
-#            teuthology_branch = ceph_branch
-#        else:
-#            log.info("branch {0} not in teuthology.git; will use master for"
-#                     " teuthology".format(ceph_branch))
-#            teuthology_branch = 'master'
-#    log.info("teuthology branch: %s", teuthology_branch)
-#
-#    if suite_branch:
-#        if not get_branch_info('ceph-qa-suite', suite_branch):
-#            exc = BranchNotFoundError(suite_branch, 'ceph-qa-suite.git')
-#            schedule_fail(message=str(exc), name=name)
-#    else:
-#        # Decide what branch of ceph-qa-suite to use
-#        if get_branch_info('ceph-qa-suite', ceph_branch):
-#            suite_branch = ceph_branch
-#        else:
-#            log.info("branch {0} not in ceph-qa-suite.git; will use master for"
-#                     " ceph-qa-suite".format(ceph_branch))
-#            suite_branch = 'master'
-#    log.info("ceph-qa-suite branch: %s", suite_branch)
-
     config_input = dict(
         suite=suite,
         suite_branch=suite_branch,
