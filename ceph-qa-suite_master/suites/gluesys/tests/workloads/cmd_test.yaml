@@ -1,0 +1,3 @@
+tasks:
+- cmd_test:
+    client.0:
