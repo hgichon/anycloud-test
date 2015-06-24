@@ -1,5 +1,5 @@
 # 0.14 switches to libev, that means bootstrap needs to change too
-gevent == 0.13.6
+gevent == 1.0.1
 # 1.7.7 has AES-128-CBC support for SSH keys, that's needed
 MySQL-python == 1.2.3
 PyYAML
